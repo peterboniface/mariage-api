@@ -1,18 +1,12 @@
 import { Storage } from "@google-cloud/storage";
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 export default async function handler(req, res) {
-  // CORS — doit être tout en haut
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Réponse immédiate pour OPTIONS (préflight)
+  // Preflight
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -22,14 +16,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Lire le fichier envoyé (buffer brut)
+    // Lire le fichier brut
     const chunks = [];
     for await (const chunk of req) {
       chunks.push(chunk);
     }
     const fileBuffer = Buffer.concat(chunks);
 
-    // Connexion à Google Cloud Storage
+    // Google Cloud Storage
     const storage = new Storage({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
