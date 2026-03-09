@@ -1,10 +1,19 @@
 import { google } from "googleapis";
+import { Readable } from "stream";
 
 export const config = {
   api: {
     bodyParser: false,
   },
 };
+
+// Convertit un Buffer en ReadableStream (Google Drive l'exige)
+function bufferToStream(buffer) {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+}
 
 export default async function handler(req, res) {
   // --- CORS ---
@@ -68,7 +77,7 @@ export default async function handler(req, res) {
         },
         media: {
           mimeType: file.mimeType,
-          body: Buffer.from(file.buffer),
+          body: bufferToStream(file.buffer), // <-- FIX ICI
         },
       });
 
@@ -81,9 +90,9 @@ export default async function handler(req, res) {
 
     } catch (err) {
       console.error("Erreur upload :", err.message, err.stack);
+      return res.status(500).json({ error: "Erreur serveur" });
     }
   });
 
   req.pipe(bb);
 }
-
