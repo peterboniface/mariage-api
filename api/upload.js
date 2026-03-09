@@ -1,5 +1,4 @@
-import { google } from "googleapis";
-import { Readable } from "stream";
+import { Storage } from "@google-cloud/storage";
 
 export const config = {
   api: {
@@ -7,92 +6,48 @@ export const config = {
   },
 };
 
-// Convertit un Buffer en ReadableStream (Google Drive l'exige)
-function bufferToStream(buffer) {
-  const stream = new Readable();
-  stream.push(buffer);
-  stream.push(null);
-  return stream;
-}
-
 export default async function handler(req, res) {
-  // --- CORS ---
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "x-upload-secret, Content-Type");
-
-  if (req.method === "OPTIONS") {
-    return res.status(200).end();
-  }
-  // ------------
-
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
 
-  if (req.headers["x-upload-secret"] !== process.env.UPLOAD_SECRET) {
-    return res.status(401).json({ error: "Clé secrète invalide" });
-  }
-
-  console.log("Requête reçue !");
-
-  const busboy = await import("busboy").then(m => m.default);
-  const bb = busboy({ headers: req.headers });
-
-  const files = [];
-
-  bb.on("file", (name, file, info) => {
-    const { filename, mimeType } = info;
-
-    const bufferChunks = [];
-    file.on("data", (data) => bufferChunks.push(data));
-    file.on("end", () => {
-      files.push({
-        filename,
-        mimeType,
-        buffer: Buffer.concat(bufferChunks),
-      });
-    });
-  });
-
-  bb.on("finish", async () => {
-    try {
-      if (files.length === 0) {
-        return res.status(400).json({ error: "Aucun fichier reçu" });
-      }
-
-      const auth = new google.auth.GoogleAuth({
-        credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
-      });
-
-      const drive = google.drive({ version: "v3", auth });
-
-      const file = files[0];
-
-      const uploaded = await drive.files.create({
-        requestBody: {
-          name: file.filename,
-          parents: [process.env.GOOGLE_FOLDER_ID],
-        },
-        media: {
-          mimeType: file.mimeType,
-          body: bufferToStream(file.buffer), // <-- FIX ICI
-        },
-      });
-
-      console.log("Upload OK :", uploaded.data.id);
-
-      return res.status(200).json({
-        success: true,
-        fileId: uploaded.data.id
-      });
-
-    } catch (err) {
-      console.error("Erreur upload :", err.message, err.stack);
-      return res.status(500).json({ error: "Erreur serveur" });
+  try {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
     }
-  });
+    const fileBuffer = Buffer.concat(chunks);
 
-  req.pipe(bb);
+    const storage = new Storage({
+      projectId: process.env.GOOGLE_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY,
+      },
+    });
+
+    const bucket = storage.bucket(process.env.GOOGLE_BUCKET_NAME);
+
+    const fileName = `upload_${Date.now()}.mp4`;
+    const file = bucket.file(fileName);
+
+    await file.save(fileBuffer, {
+      resumable: false,
+      contentType: "video/mp4",
+    });
+
+    const [url] = await file.getSignedUrl({
+      action: "read",
+      expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 jours
+    });
+
+    return res.status(200).json({
+      message: "Upload réussi",
+      fileName,
+      url,
+    });
+  } catch (error) {
+    console.error("Erreur upload:", error);
+    return res.status(500).json({ error: "Erreur upload" });
+  }
 }
