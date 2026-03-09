@@ -7,6 +7,15 @@ export const config = {
 };
 
 export default async function handler(req, res) {
+  // CORS
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée" });
   }
@@ -38,7 +47,7 @@ export default async function handler(req, res) {
 
     const [url] = await file.getSignedUrl({
       action: "read",
-      expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 jours
+      expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
     });
 
     return res.status(200).json({
