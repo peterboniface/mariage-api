@@ -1,0 +1,8 @@
+{
+  "name": "mariage-api",
+  "version": "1.0.0",
+  "dependencies": {
+    "googleapis": "^105.0.0",
+    "busboy": "^1.6.0"
+  }
+}
