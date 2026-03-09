@@ -80,10 +80,10 @@ export default async function handler(req, res) {
       });
 
     } catch (err) {
-      console.error("Erreur upload :", err);
-      return res.status(500).json({ error: "Erreur serveur" });
+      console.error("Erreur upload :", err.message, err.stack);
     }
   });
 
   req.pipe(bb);
 }
+
