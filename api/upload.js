@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       });
     });
   });
-
+console.log("Requête reçue !");
   bb.on("finish", async () => {
     try {
       const auth = new google.auth.GoogleAuth({
@@ -65,3 +65,4 @@ export default async function handler(req, res) {
 
   req.pipe(bb);
 }
+
