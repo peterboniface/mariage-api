@@ -7,11 +7,12 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  // CORS
+  // CORS — doit être tout en haut
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
+  // Réponse immédiate pour OPTIONS (préflight)
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
@@ -21,12 +22,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Lire le fichier envoyé
     const chunks = [];
     for await (const chunk of req) {
       chunks.push(chunk);
     }
     const fileBuffer = Buffer.concat(chunks);
 
+    // Connexion à Google Cloud Storage
     const storage = new Storage({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
