@@ -9,7 +9,7 @@ export const config = {
 export default async function handler(req, res) {
   // CORS — doit être tout en haut
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   // Réponse immédiate pour OPTIONS (préflight)
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Lire le fichier envoyé
+    // Lire le fichier envoyé (buffer brut)
     const chunks = [];
     for await (const chunk of req) {
       chunks.push(chunk);
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       },
     });
 
