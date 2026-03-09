@@ -15,6 +15,8 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: "Clé secrète invalide" });
   }
 
+  console.log("Requête reçue !");
+
   const busboy = await import("busboy").then(m => m.default);
   const bb = busboy({ headers: req.headers });
 
@@ -33,11 +35,13 @@ export default async function handler(req, res) {
       });
     });
   });
-  
-console.log("Requête reçue !");
-  
+
   bb.on("finish", async () => {
     try {
+      if (files.length === 0) {
+        return res.status(400).json({ error: "Aucun fichier reçu" });
+      }
+
       const auth = new google.auth.GoogleAuth({
         credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT),
         scopes: ["https://www.googleapis.com/auth/drive.file"],
@@ -45,27 +49,28 @@ console.log("Requête reçue !");
 
       const drive = google.drive({ version: "v3", auth });
 
-      for (const file of files) {
-        await drive.files.create({
-          requestBody: {
-            name: `${Date.now()}-${file.filename}`,
-            parents: [process.env.GOOGLE_FOLDER_ID],
-          },
-          media: {
-            mimeType: file.mimeType,
-            body: Buffer.from(file.buffer),
-          },
-        });
-      }
+      const file = files[0];
 
-      return res.status(200).json({ success: true });
+      const uploaded = await drive.files.create({
+        requestBody: {
+          name: file.filename,
+          parents: [process.env.GOOGLE_FOLDER_ID],
+        },
+        media: {
+          mimeType: file.mimeType,
+          body: Buffer.from(file.buffer),
+        },
+      });
+
+      console.log("Upload OK :", uploaded.data.id);
+
+      return res.status(200).json({ success: true, fileId: uploaded.data.id });
+
     } catch (err) {
-      console.error(err);
+      console.error("Erreur upload :", err);
       return res.status(500).json({ error: "Erreur serveur" });
     }
   });
 
   req.pipe(bb);
 }
-
-
